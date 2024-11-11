@@ -10,10 +10,26 @@
             text-align: center;
             padding: 20px;
         }
+        #container {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            flex-wrap: wrap;
+        }
+        #camera-container {
+            width: 45%;
+            max-width: 400px;
+            margin-right: 20px;
+        }
         video {
             width: 100%;
-            max-width: 400px;
+            max-width: 100%;
             border: 1px solid #ccc;
+        }
+        #table-container {
+            width: 45%;
+            max-width: 600px;
+            margin-top: 20px;
         }
         button {
             padding: 10px 20px;
@@ -28,46 +44,137 @@
         button:disabled {
             background-color: #ccc;
         }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        table, th, td {
+            border: 1px solid #ddd;
+        }
+        th, td {
+            padding: 8px;
+            text-align: center;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
     </style>
 </head>
 <body>
     <h1>Leitor de Código de Barras</h1>
 
-    <!-- Botão para iniciar a leitura -->
-    <button id="startBtn">Iniciar Leitura</button>
+    <div id="container">
+        <!-- Camera -->
+        <div id="camera-container">
+            <h3>Visualização da Câmera</h3>
+            <video id="video" autoplay></video>
+            <button id="startBtn">Iniciar Leitura</button>
+            <button id="stopBtn" disabled>Parar Leitura</button>
+        </div>
 
-    <!-- Área onde o vídeo da câmera será exibido -->
-    <video id="video" autoplay></video>
+        <!-- Tabela de Itens -->
+        <div id="table-container">
+            <h3>Itens Escaneados</h3>
+            <table id="itemsTable">
+                <thead>
+                    <tr>
+                        <th>Código</th>
+                        <th>Descrição</th>
+                        <th>Quantidade</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Dados serão inseridos aqui -->
+                </tbody>
+            </table>
+            <button id="exportBtn" disabled>Gerar CSV</button>
+        </div>
+    </div>
 
-    <!-- Exibir mensagem de erro -->
     <p id="errorMsg" style="color: red;"></p>
 
     <script>
         const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
         const video = document.getElementById('video');
         const errorMsg = document.getElementById('errorMsg');
+        const exportBtn = document.getElementById('exportBtn');
+        const itemsTable = document.getElementById('itemsTable').getElementsByTagName('tbody')[0];
+
+        let scannerActive = false;
+        let mediaStream = null;
 
         // Função para iniciar a câmera
         function startCamera() {
-            // Solicitar acesso à câmera
             navigator.mediaDevices.getUserMedia({ video: true })
                 .then(function(stream) {
-                    // Exibir o vídeo da câmera na tela
+                    mediaStream = stream;
                     video.srcObject = stream;
                     errorMsg.textContent = '';  // Limpar mensagem de erro
-
-                    // Desabilitar o botão após iniciar a câmera
                     startBtn.disabled = true;
-                    startBtn.textContent = 'Câmera Ativada';
+                    stopBtn.disabled = false;
+                    scannerActive = true;
+
+                    // Lógica de escaneamento de código de barras
+                    startScanning();
                 })
                 .catch(function(error) {
-                    // Caso ocorra um erro ao acessar a câmera
                     errorMsg.textContent = 'Erro ao acessar a câmera: ' + error.message;
                 });
         }
 
-        // Adicionar evento de clique no botão
+        // Função para parar a câmera
+        function stopCamera() {
+            if (mediaStream) {
+                mediaStream.getTracks().forEach(track => track.stop());
+                video.srcObject = null;
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+                scannerActive = false;
+            }
+        }
+
+        // Função para simular leitura de código de barras
+        function startScanning() {
+            // Simulação de escaneamento (substitua com o código real para escanear)
+            setInterval(() => {
+                if (scannerActive) {
+                    const barcode = '123456789'; // Substitua com o código real lido pela câmera
+                    addItem(barcode, 'Produto Exemplo', Math.floor(Math.random() * 10) + 1);
+                }
+            }, 3000); // Simular escaneamento a cada 3 segundos
+        }
+
+        // Função para adicionar um item na tabela
+        function addItem(code, description, quantity) {
+            const newRow = itemsTable.insertRow();
+            newRow.insertCell(0).textContent = code;
+            newRow.insertCell(1).textContent = description;
+            newRow.insertCell(2).textContent = quantity;
+            exportBtn.disabled = false; // Ativar botão de exportação
+        }
+
+        // Função para exportar tabela para CSV
+        function exportTableToCSV() {
+            const rows = Array.from(itemsTable.rows);
+            const csvContent = rows.map(row => {
+                const cells = Array.from(row.cells);
+                return cells.map(cell => cell.textContent).join(',');
+            }).join('\n');
+
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'itens.csv';
+            link.click();
+        }
+
+        // Eventos de clique nos botões
         startBtn.addEventListener('click', startCamera);
+        stopBtn.addEventListener('click', stopCamera);
+        exportBtn.addEventListener('click', exportTableToCSV);
+
     </script>
 </body>
 </html>
