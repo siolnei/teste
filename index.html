@@ -29,39 +29,52 @@
 <script>
     let isScanning = false;
 
-    // Função para iniciar o scanner
-    function startScanner() {
+    // Verifica permissões e inicia o scanner
+    async function startScanner() {
         if (isScanning) return;
 
+        // Tenta acessar a câmera para garantir que a permissão esteja ativa
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+            stream.getTracks().forEach(track => track.stop()); // Para o stream após obter a permissão
+
+            initQuagga(); // Inicializa o Quagga após garantir permissões
+        } catch (err) {
+            console.error("Erro ao acessar a câmera:", err);
+            document.getElementById("status").textContent = "Permissão para câmera negada.";
+        }
+    }
+
+    function initQuagga() {
         Quagga.init({
             inputStream: {
-                name: "Live",
                 type: "LiveStream",
-                target: document.querySelector("body"), // Mostra a câmera
+                target: document.querySelector("body"), // Exibe a câmera no corpo da página
                 constraints: {
                     facingMode: "environment" // Usa a câmera traseira
                 }
             },
             decoder: {
-                readers: ["code_128_reader"] // Adicione outros tipos de código de barras se necessário
-            }
+                readers: ["code_128_reader", "ean_reader"] // Suporte a Code 128 e EAN
+            },
+            locate: true
         }, function(err) {
             if (err) {
                 console.error("Erro ao iniciar Quagga:", err);
-                document.getElementById("status").textContent = "Erro ao acessar a câmera.";
+                document.getElementById("status").textContent = "Erro ao iniciar o scanner.";
                 return;
             }
             Quagga.start();
             isScanning = true;
-            document.getElementById("status").textContent = "Leitura iniciada.";
+            document.getElementById("status").textContent = "Scanner ativo.";
         });
 
-        // Listener para quando um código de barras é detectado
+        // Evento ao detectar código de barras
         Quagga.onDetected(function(result) {
             const code = result.codeResult.code;
             addBarcodeToTable(code);
-            Quagga.offDetected(); // Para evitar múltiplas leituras seguidas
-            setTimeout(() => Quagga.onDetected(result => addBarcodeToTable(result.codeResult.code)), 1000);
+            Quagga.offDetected(); // Pausa a detecção para evitar duplicatas
+            setTimeout(() => Quagga.onDetected(event => addBarcodeToTable(event.codeResult.code)), 1000);
         });
     }
 
@@ -70,7 +83,7 @@
         if (isScanning) {
             Quagga.stop();
             isScanning = false;
-            document.getElementById("status").textContent = "Leitura parada.";
+            document.getElementById("status").textContent = "Scanner parado.";
         }
     }
 
