@@ -104,24 +104,32 @@
 
         let scannerActive = false;
         let mediaStream = null;
+        let videoTrack = null;
 
         // Função para iniciar a câmera
         function startCamera() {
-            navigator.mediaDevices.getUserMedia({ video: true })
-                .then(function(stream) {
-                    mediaStream = stream;
-                    video.srcObject = stream;
-                    errorMsg.textContent = '';  // Limpar mensagem de erro
-                    startBtn.disabled = true;
-                    stopBtn.disabled = false;
-                    scannerActive = true;
+            navigator.mediaDevices.enumerateDevices().then(devices => {
+                const videoDevices = devices.filter(device => device.kind === 'videoinput');
+                const rearCamera = videoDevices.find(device => device.label.toLowerCase().includes('back') || device.label.toLowerCase().includes('traseira'));
 
-                    // Lógica de escaneamento de código de barras
-                    startScanning();
-                })
-                .catch(function(error) {
-                    errorMsg.textContent = 'Erro ao acessar a câmera: ' + error.message;
-                });
+                if (rearCamera) {
+                    navigator.mediaDevices.getUserMedia({ video: { deviceId: rearCamera.deviceId } })
+                        .then(function(stream) {
+                            mediaStream = stream;
+                            video.srcObject = stream;
+                            videoTrack = stream.getVideoTracks()[0];
+                            errorMsg.textContent = '';  // Limpar mensagem de erro
+                            startBtn.disabled = true;
+                            stopBtn.disabled = false;
+                            scannerActive = true;
+                        })
+                        .catch(function(error) {
+                            errorMsg.textContent = 'Erro ao acessar a câmera: ' + error.message;
+                        });
+                } else {
+                    errorMsg.textContent = 'Câmera traseira não encontrada.';
+                }
+            });
         }
 
         // Função para parar a câmera
@@ -135,15 +143,11 @@
             }
         }
 
-        // Função para simular leitura de código de barras
-        function startScanning() {
-            // Simulação de escaneamento (substitua com o código real para escanear)
-            setInterval(() => {
-                if (scannerActive) {
-                    const barcode = '123456789'; // Substitua com o código real lido pela câmera
-                    addItem(barcode, 'Produto Exemplo', Math.floor(Math.random() * 10) + 1);
-                }
-            }, 3000); // Simular escaneamento a cada 3 segundos
+        // Função para simular a leitura do código de barras
+        function simulateBarcodeScan() {
+            // A simulação pode ser desativada, substituindo por uma leitura real.
+            const barcode = '123456789'; // Substitua com código real lido pela câmera
+            addItem(barcode, 'Produto Exemplo', Math.floor(Math.random() * 10) + 1);
         }
 
         // Função para adicionar um item na tabela
