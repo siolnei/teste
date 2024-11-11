@@ -11,6 +11,7 @@
 <h2>Leitor de Código de Barras</h2>
 <button onclick="startScanner()">Iniciar Leitura</button>
 <button onclick="stopScanner()">Parar Leitura</button>
+<p id="status">Status: Pronto</p>
 
 <h3>Códigos Escaneados:</h3>
 <table id="barcodeTable" border="1">
@@ -26,36 +27,51 @@
 <button onclick="exportTableToCSV()">Exportar para CSV</button>
 
 <script>
+    let isScanning = false;
+
     // Função para iniciar o scanner
     function startScanner() {
+        if (isScanning) return;
+
         Quagga.init({
             inputStream: {
+                name: "Live",
                 type: "LiveStream",
+                target: document.querySelector("body"), // Mostra a câmera
                 constraints: {
                     facingMode: "environment" // Usa a câmera traseira
                 }
             },
             decoder: {
-                readers: ["code_128_reader"] // Adicione outros tipos se necessário
+                readers: ["code_128_reader"] // Adicione outros tipos de código de barras se necessário
             }
         }, function(err) {
             if (err) {
-                console.error(err);
+                console.error("Erro ao iniciar Quagga:", err);
+                document.getElementById("status").textContent = "Erro ao acessar a câmera.";
                 return;
             }
             Quagga.start();
+            isScanning = true;
+            document.getElementById("status").textContent = "Leitura iniciada.";
         });
 
         // Listener para quando um código de barras é detectado
         Quagga.onDetected(function(result) {
             const code = result.codeResult.code;
             addBarcodeToTable(code);
+            Quagga.offDetected(); // Para evitar múltiplas leituras seguidas
+            setTimeout(() => Quagga.onDetected(result => addBarcodeToTable(result.codeResult.code)), 1000);
         });
     }
 
     // Função para parar o scanner
     function stopScanner() {
-        Quagga.stop();
+        if (isScanning) {
+            Quagga.stop();
+            isScanning = false;
+            document.getElementById("status").textContent = "Leitura parada.";
+        }
     }
 
     // Função para adicionar o código à tabela
