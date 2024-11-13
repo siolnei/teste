@@ -22,8 +22,28 @@
             max-width: 100%;
             border: 1px solid #ccc;
         }
-        #errorMsg {
-            color: red;
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        #itemsTable {
+            width: 100%;
+            max-width: 600px;
+            margin-top: 20px;
+            border-collapse: collapse;
+        }
+        #itemsTable, th, td {
+            border: 1px solid #ddd;
+        }
+        th, td {
+            padding: 8px;
+            text-align: center;
+        }
+        th {
+            background-color: #f2f2f2;
         }
         button {
             padding: 10px 20px;
@@ -42,16 +62,34 @@
 
     <div id="camera-container">
         <video id="video" autoplay playsinline></video>
+        <canvas id="overlay"></canvas>
     </div>
     
     <button id="startBtn">Iniciar Leitura</button>
-    <p id="errorMsg"></p>
+    <p id="errorMsg" style="color: red;"></p>
+
+    <!-- Tabela para mostrar códigos escaneados -->
+    <table id="itemsTable">
+        <thead>
+            <tr>
+                <th>Código</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Linhas adicionadas dinamicamente -->
+        </tbody>
+    </table>
 
     <script>
         const startBtn = document.getElementById('startBtn');
         const video = document.getElementById('video');
+        const overlay = document.getElementById('overlay');
+        const contextOverlay = overlay.getContext('2d');
         const errorMsg = document.getElementById('errorMsg');
+        const itemsTable = document.getElementById('itemsTable').getElementsByTagName('tbody')[0];
+
         let mediaStream = null;
+        let scanning = false;
 
         // Função para iniciar a câmera
         async function startCamera() {
@@ -64,13 +102,57 @@
 
                 mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
                 video.srcObject = mediaStream;
+                overlay.width = video.videoWidth;
+                overlay.height = video.videoHeight;
                 errorMsg.textContent = '';
+                scanning = true;
+
+                // Iniciar a leitura do código de barras
+                requestAnimationFrame(scanBarcode);
             } catch (error) {
                 errorMsg.textContent = 'Erro ao acessar a câmera: ' + error.message;
             }
         }
 
-        startBtn.addEventListener('click', startCamera);
+        // Função para escanear o código de barras com jsQR
+        function scanBarcode() {
+            if (!scanning) return;
+
+            contextOverlay.drawImage(video, 0, 0, overlay.width, overlay.height);
+            const imageData = contextOverlay.getImageData(0, 0, overlay.width, overlay.height);
+            const code = jsQR(imageData.data, overlay.width, overlay.height);
+
+            if (code) {
+                // Realça o código de barras na tela
+                contextOverlay.beginPath();
+                contextOverlay.moveTo(code.location.topLeftCorner.x, code.location.topLeftCorner.y);
+                contextOverlay.lineTo(code.location.topRightCorner.x, code.location.topRightCorner.y);
+                contextOverlay.lineTo(code.location.bottomRightCorner.x, code.location.bottomRightCorner.y);
+                contextOverlay.lineTo(code.location.bottomLeftCorner.x, code.location.bottomLeftCorner.y);
+                contextOverlay.closePath();
+                contextOverlay.strokeStyle = "#FF3B58";
+                contextOverlay.lineWidth = 4;
+                contextOverlay.stroke();
+
+                addItemToTable(code.data);
+                scanning = false;  // Parar após um código ser lido
+            } else {
+                requestAnimationFrame(scanBarcode);  // Continua escaneando se nenhum código foi encontrado
+            }
+        }
+
+        // Função para adicionar um item na tabela
+        function addItemToTable(code) {
+            const newRow = itemsTable.insertRow();
+            const cell = newRow.insertCell(0);
+            cell.textContent = code;
+        }
+
+        // Evento de clique no botão "Iniciar Leitura"
+        startBtn.addEventListener('click', () => {
+            scanning = true;
+            startCamera();
+        });
     </script>
 </body>
 </html>
