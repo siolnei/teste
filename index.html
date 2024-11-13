@@ -122,8 +122,10 @@
             const imageData = contextOverlay.getImageData(0, 0, overlay.width, overlay.height);
             const code = jsQR(imageData.data, overlay.width, overlay.height);
 
+            contextOverlay.clearRect(0, 0, overlay.width, overlay.height);  // Limpa o canvas para remover o contorno anterior
+
             if (code) {
-                // Realça o código de barras na tela
+                // Realça o código de barras na tela para mostrar que algo foi detectado
                 contextOverlay.beginPath();
                 contextOverlay.moveTo(code.location.topLeftCorner.x, code.location.topLeftCorner.y);
                 contextOverlay.lineTo(code.location.topRightCorner.x, code.location.topRightCorner.y);
@@ -134,8 +136,8 @@
                 contextOverlay.lineWidth = 4;
                 contextOverlay.stroke();
 
-                addItemToTable(code.data);
-                scanning = false;  // Parar após um código ser lido
+                addItemToTable(code.data); // Adiciona o código à tabela
+                scanning = false;  // Para após ler um código
             } else {
                 requestAnimationFrame(scanBarcode);  // Continua escaneando se nenhum código foi encontrado
             }
