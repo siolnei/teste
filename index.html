@@ -11,16 +11,10 @@
             text-align: center;
             padding: 20px;
         }
-        #container {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            flex-wrap: wrap;
-        }
         #camera-container {
-            width: 45%;
+            width: 100%;
             max-width: 400px;
-            margin-right: 20px;
+            margin: auto;
             position: relative;
         }
         video {
@@ -28,203 +22,55 @@
             max-width: 100%;
             border: 1px solid #ccc;
         }
-        canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-        }
-        #table-container {
-            width: 45%;
-            max-width: 600px;
-            margin-top: 20px;
+        #errorMsg {
+            color: red;
         }
         button {
             padding: 10px 20px;
-            margin-top: 20px;
             font-size: 16px;
             cursor: pointer;
+            margin-top: 20px;
             background-color: #4CAF50;
             color: white;
             border: none;
             border-radius: 5px;
-        }
-        button:disabled {
-            background-color: #ccc;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-        }
-        table, th, td {
-            border: 1px solid #ddd;
-        }
-        th, td {
-            padding: 8px;
-            text-align: center;
-        }
-        th {
-            background-color: #f2f2f2;
         }
     </style>
 </head>
 <body>
     <h1>Leitor de Código de Barras</h1>
 
-    <div id="container">
-        <!-- Camera -->
-        <div id="camera-container">
-            <h3>Visualização da Câmera</h3>
-            <video id="video" autoplay playsinline></video>
-            <canvas id="overlay"></canvas>
-            <button id="startBtn">Iniciar Leitura</button>
-            <button id="stopBtn" disabled>Parar Leitura</button>
-        </div>
-
-        <!-- Tabela de Itens -->
-        <div id="table-container">
-            <h3>Itens Escaneados</h3>
-            <table id="itemsTable">
-                <thead>
-                    <tr>
-                        <th>Código</th>
-                        <th>Descrição</th>
-                        <th>Quantidade</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <!-- Dados serão inseridos aqui -->
-                </tbody>
-            </table>
-            <button id="exportBtn" disabled>Gerar CSV</button>
-        </div>
+    <div id="camera-container">
+        <video id="video" autoplay playsinline></video>
     </div>
-
-    <p id="errorMsg" style="color: red;"></p>
+    
+    <button id="startBtn">Iniciar Leitura</button>
+    <p id="errorMsg"></p>
 
     <script>
         const startBtn = document.getElementById('startBtn');
-        const stopBtn = document.getElementById('stopBtn');
         const video = document.getElementById('video');
-        const overlay = document.getElementById('overlay');
-        const contextOverlay = overlay.getContext('2d');
         const errorMsg = document.getElementById('errorMsg');
-        const exportBtn = document.getElementById('exportBtn');
-        const itemsTable = document.getElementById('itemsTable').getElementsByTagName('tbody')[0];
-
         let mediaStream = null;
-        let scanning = false;
 
         // Função para iniciar a câmera
         async function startCamera() {
             try {
-                const devices = await navigator.mediaDevices.enumerateDevices();
-                const videoDevices = devices.filter(device => device.kind === 'videoinput');
-                const rearCamera = videoDevices.find(device => device.label.toLowerCase().includes('back') || device.label.toLowerCase().includes('traseira'));
+                const constraints = {
+                    video: {
+                        facingMode: { exact: "environment" }
+                    }
+                };
 
-                if (rearCamera) {
-                    const constraints = {
-                        video: {
-                            deviceId: rearCamera.deviceId,
-                            facingMode: "environment",
-                            advanced: [{ zoom: 2 }]  // Zoom inicial
-                        }
-                    };
-
-                    mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
-                    video.srcObject = mediaStream;
-                    startBtn.disabled = true;
-                    stopBtn.disabled = false;
-                    errorMsg.textContent = '';  // Limpar mensagem de erro
-                    scanning = true;
-
-                    requestAnimationFrame(scanBarcode);  // Iniciar a leitura do código de barras
-                } else {
-                    errorMsg.textContent = 'Câmera traseira não encontrada.';
-                }
+                mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+                video.srcObject = mediaStream;
+                errorMsg.textContent = '';
             } catch (error) {
                 errorMsg.textContent = 'Erro ao acessar a câmera: ' + error.message;
             }
         }
 
-        // Função para parar a câmera
-        function stopCamera() {
-            if (mediaStream) {
-                mediaStream.getTracks().forEach(track => track.stop());
-                video.srcObject = null;
-                startBtn.disabled = false;
-                stopBtn.disabled = true;
-                scanning = false;
-                contextOverlay.clearRect(0, 0, overlay.width, overlay.height);
-            }
-        }
-
-        // Função para escanear o código de barras com jsQR
-        function scanBarcode() {
-            if (!scanning) return;
-
-            overlay.width = video.videoWidth;
-            overlay.height = video.videoHeight;
-            contextOverlay.drawImage(video, 0, 0, overlay.width, overlay.height);
-
-            const imageData = contextOverlay.getImageData(0, 0, overlay.width, overlay.height);
-            const code = jsQR(imageData.data, overlay.width, overlay.height);
-
-            if (code) {
-                contextOverlay.beginPath();
-                contextOverlay.moveTo(code.location.topLeftCorner.x, code.location.topLeftCorner.y);
-                contextOverlay.lineTo(code.location.topRightCorner.x, code.location.topRightCorner.y);
-                contextOverlay.lineTo(code.location.bottomRightCorner.x, code.location.bottomRightCorner.y);
-                contextOverlay.lineTo(code.location.bottomLeftCorner.x, code.location.bottomLeftCorner.y);
-                contextOverlay.closePath();
-                contextOverlay.strokeStyle = "#FF3B58";
-                contextOverlay.lineWidth = 4;
-                contextOverlay.stroke();
-
-                addItem(code.data, 'Produto Escaneado', 1);
-                stopCamera();  // Parar a leitura ao escanear um código
-            } else {
-                requestAnimationFrame(scanBarcode);  // Continua a escanear se nenhum código foi encontrado
-            }
-        }
-
-        // Função para adicionar um item na tabela
-        function addItem(code, description, quantity) {
-            const existingRow = Array.from(itemsTable.rows).find(row => row.cells[0].textContent === code);
-
-            if (existingRow) {
-                existingRow.cells[2].textContent = parseInt(existingRow.cells[2].textContent) + quantity;
-            } else {
-                const newRow = itemsTable.insertRow();
-                newRow.insertCell(0).textContent = code;
-                newRow.insertCell(1).textContent = description;
-                newRow.insertCell(2).textContent = quantity;
-            }
-            
-            exportBtn.disabled = false;
-        }
-
-        // Função para exportar tabela para CSV
-        function exportTableToCSV() {
-            const rows = Array.from(itemsTable.rows);
-            const csvContent = rows.map(row => {
-                const cells = Array.from(row.cells);
-                return cells.map(cell => cell.textContent).join(',');
-            }).join('\n');
-
-            const blob = new Blob([csvContent], { type: 'text/csv' });
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = 'itens.csv';
-            link.click();
-        }
-
-        // Eventos de clique nos botões
         startBtn.addEventListener('click', startCamera);
-        stopBtn.addEventListener('click', stopCamera);
-        exportBtn.addEventListener('click', exportTableToCSV);
     </script>
 </body>
 </html>
