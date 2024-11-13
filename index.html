@@ -58,7 +58,7 @@
     </style>
 </head>
 <body>
-    <h1>Leitor de Código de Barras</h1>
+    <h1>Leitor de Código de Barras1</h1>
 
     <div id="camera-container">
         <video id="video" autoplay playsinline></video>
@@ -97,20 +97,21 @@
                 const constraints = {
                     video: {
                         facingMode: { exact: "environment" },
-                        width: { ideal: 1280 },   // Altera a resolução para 1280x720
+                        width: { ideal: 1280 },   // Aumenta resolução
                         height: { ideal: 720 }
                     }
                 };
 
                 mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
                 video.srcObject = mediaStream;
-                overlay.width = video.videoWidth;
-                overlay.height = video.videoHeight;
+                video.onloadedmetadata = () => {
+                    overlay.width = video.videoWidth;
+                    overlay.height = video.videoHeight;
+                };
+                
                 errorMsg.textContent = '';
                 scanning = true;
-
-                // Iniciar a leitura do código de barras
-                requestAnimationFrame(scanBarcode);
+                scanBarcode();  // Começa a leitura
             } catch (error) {
                 errorMsg.textContent = 'Erro ao acessar a câmera: ' + error.message;
             }
@@ -124,7 +125,6 @@
             const imageData = contextOverlay.getImageData(0, 0, overlay.width, overlay.height);
             const code = jsQR(imageData.data, overlay.width, overlay.height);
 
-            // Limpa o overlay para redesenhar o contorno
             contextOverlay.clearRect(0, 0, overlay.width, overlay.height);
 
             if (code) {
@@ -133,7 +133,7 @@
                 addItemToTable(code.data); // Adiciona o código à tabela
                 scanning = false;  // Para após ler um código
             } else {
-                requestAnimationFrame(scanBarcode);  // Continua escaneando se nenhum código foi encontrado
+                requestAnimationFrame(scanBarcode);  // Continua escaneando
             }
         }
 
