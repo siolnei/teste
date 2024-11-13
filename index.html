@@ -96,7 +96,9 @@
             try {
                 const constraints = {
                     video: {
-                        facingMode: { exact: "environment" }
+                        facingMode: { exact: "environment" },
+                        width: { ideal: 1280 },   // Altera a resolução para 1280x720
+                        height: { ideal: 720 }
                     }
                 };
 
@@ -122,25 +124,33 @@
             const imageData = contextOverlay.getImageData(0, 0, overlay.width, overlay.height);
             const code = jsQR(imageData.data, overlay.width, overlay.height);
 
-            contextOverlay.clearRect(0, 0, overlay.width, overlay.height);  // Limpa o canvas para remover o contorno anterior
+            // Limpa o overlay para redesenhar o contorno
+            contextOverlay.clearRect(0, 0, overlay.width, overlay.height);
 
             if (code) {
-                // Realça o código de barras na tela para mostrar que algo foi detectado
-                contextOverlay.beginPath();
-                contextOverlay.moveTo(code.location.topLeftCorner.x, code.location.topLeftCorner.y);
-                contextOverlay.lineTo(code.location.topRightCorner.x, code.location.topRightCorner.y);
-                contextOverlay.lineTo(code.location.bottomRightCorner.x, code.location.bottomRightCorner.y);
-                contextOverlay.lineTo(code.location.bottomLeftCorner.x, code.location.bottomLeftCorner.y);
-                contextOverlay.closePath();
-                contextOverlay.strokeStyle = "#FF3B58";
-                contextOverlay.lineWidth = 4;
-                contextOverlay.stroke();
-
+                // Desenha o contorno ao redor do código detectado
+                drawOutline(code.location);
                 addItemToTable(code.data); // Adiciona o código à tabela
                 scanning = false;  // Para após ler um código
             } else {
                 requestAnimationFrame(scanBarcode);  // Continua escaneando se nenhum código foi encontrado
             }
+        }
+
+        // Função para desenhar o contorno do código detectado
+        function drawOutline(location) {
+            contextOverlay.beginPath();
+            contextOverlay.moveTo(location.topLeftCorner.x, location.topLeftCorner.y);
+            contextOverlay.lineTo(location.topRightCorner.x, location.topRightCorner.y);
+            contextOverlay.lineTo(location.bottomRightCorner.x, location.bottomRightCorner.y);
+            contextOverlay.lineTo(location.bottomLeftCorner.x, location.bottomLeftCorner.y);
+            contextOverlay.closePath();
+            contextOverlay.strokeStyle = "#FF3B58";
+            contextOverlay.lineWidth = 4;
+            contextOverlay.stroke();
+            contextOverlay.font = "20px Arial";
+            contextOverlay.fillStyle = "#FF3B58";
+            contextOverlay.fillText("Código detectado", location.topLeftCorner.x, location.topLeftCorner.y - 10);
         }
 
         // Função para adicionar um item na tabela
